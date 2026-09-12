@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CloudTicket</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <div class="container">
+
+        <!-- Home Page -->
+        <div id="home-page">
+            <h1>🎫 CloudTicket</h1>
+            <p class="subtitle">Simple Ticket Booking Demo</p>
+
+            <button onclick="showEventsPage()">View Events</button>
+            <button onclick="showOrdersPage()">View Orders</button>
+        </div>
+
+        <!-- Events Page -->
+        <div id="events-page" class="hidden">
+            <button onclick="showHomePage()">⬅ Back</button>
+
+            <h2>🎵 Events</h2>
+
+            <div id="events"></div>
+        </div>
+
+        <!-- Orders Page -->
+        <div id="orders-page" class="hidden">
+            <button onclick="showHomePage()">⬅ Back</button>
+
+            <h2>📋 Orders</h2>
+
+            <div id="orders"></div>
+        </div>
+
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>

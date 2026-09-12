@@ -1,0 +1,52 @@
+### Health Check
+GET http://localhost:3000/api/health
+
+### Get All Events
+GET http://localhost:3000/api/events/1
+
+### Create Event
+POST http://localhost:3000/api/events
+Content-Type: application/json
+
+{
+    "title": "Ed Sheeran",
+    "city": "Christchurch",
+    "date": "2026-11-20",
+    "available_tickets": 800
+}
+
+### Put Event by ID
+PUT http://localhost:3000/api/events/3
+Content-Type: application/json
+
+{
+    "title": "Ed Sheeran",
+    "city": "Waikato",
+    "date": "2026-11-20",
+    "available_tickets": 800
+}
+
+### Delete Event by ID
+DELETE http://localhost:3000/api/events/3
+
+### Create Order
+POST http://localhost:3000/api/orders
+Content-Type: application/json
+
+{
+    "event_id": 1,
+    "customer_name": "Jeffrey",
+    "quantity": 2
+}
+
+###
+GET http://localhost:3000/api/orders?event_id=1
+
+###
+GET http://localhost:3000/api/orders
+
+###
+GET http://localhost:3000/api/orders?status=PENDING
+
+###
+GET http://localhost:3000/api/orders?event_id=1&status=PENDING

@@ -1,0 +1,7 @@
+{
+  "name": "cloudticket-frontend",
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "http-server . -p 8080 -c-1"
+  }
+}

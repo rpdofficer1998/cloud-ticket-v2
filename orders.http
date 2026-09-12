@@ -1,0 +1,46 @@
+POST http://localhost:3000/api/orders
+Content-Type: application/json
+
+{
+    "event_id": 1,
+    "customer_name": "Jeffrey",
+    "quantity": 5
+}
+
+### Pay order
+POST http://localhost:3000/api/orders/3/pay
+Content-Type: application/json
+
+{}
+
+### Cancel order
+POST http://localhost:3000/api/orders/6/cancel
+Content-Type: application/json
+
+{}
+
+### Ada
+POST http://localhost:3000/api/orders
+Content-Type: application/json
+
+{
+    "event_id": 1,
+    "customer_name": "Ada",
+    "quantity": 1
+}
+
+### Bob
+POST http://localhost:3000/api/orders
+Content-Type: application/json
+
+{
+    "event_id": 1,
+    "customer_name": "Bob",
+    "quantity": 1
+}
+
+### Expire pending orders
+POST http://localhost:3000/api/orders/expire
+Content-Type: application/json
+
+{}
