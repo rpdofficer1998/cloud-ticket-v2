@@ -31,3 +31,4 @@ crash.log
 cloudticket.sql
 github-actions-cd-policy.json
 github-actions-trust-policy.json
+*.sql

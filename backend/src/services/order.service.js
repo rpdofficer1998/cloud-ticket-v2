@@ -1,5 +1,11 @@
 const pool = require('../config/db');
 
+const {
+  publishOrderCreated,
+  publishPaymentSuccessful,
+  publishOrderCancelled,
+} = require("./order-event.service");
+
 const createOrder = async ({
     event_id,
     customer_name,
@@ -50,7 +56,12 @@ const createOrder = async ({
 
     // 5. Commit the transaction
     await client.query('COMMIT'); 
-    return orderResult.rows[0];
+
+    const order = orderResult.rows[0];
+    publishOrderCreated(order);
+
+    return order;
+
 } catch (error) {
     // Rollback the transaction in case of error
     await client.query('ROLLBACK');
@@ -88,58 +99,92 @@ const payOrder = async (id) => {
             status = 'PAID',
             expires_at = NULL
         WHERE id = $1
+        AND status = 'PENDING'
         RETURNING *
         `,
         [id]
     );
 
-    return result.rows[0];
+    const paidOrder =  result.rows[0];
+    publishPaymentSuccessful(paidOrder);
+
+    return paidOrder;
 };
 
 // Cancel a pending order and release tickets
 const cancelOrder = async (id) => {
 
-    // 1. Find the order
-    const orderResult = await pool.query(
-        "SELECT * FROM orders WHERE id = $1",
-        [id]
-    );
+    const client = await pool.connect();
 
-    const order = orderResult.rows[0];
+    try {
 
-    if (!order) {
-        throw new Error("Order not found");
+        await client.query('BEGIN');
+
+        // 1. Find and lock the order
+        const orderResult = await client.query(
+            `
+            SELECT *
+            FROM orders
+            WHERE id = $1
+            FOR UPDATE
+            `,
+            [id]
+        );
+
+        const order = orderResult.rows[0];
+
+        if (!order) {
+            throw new Error("Order not found");
+        }
+
+        // 2. Only pending orders can be cancelled
+        if (order.status !== 'PENDING') {
+            throw new Error("Only pending orders can be cancelled");
+        }
+
+        // 3. Release the locked tickets
+        await client.query(
+            `
+            UPDATE events
+            SET available_tickets = available_tickets + $1
+            WHERE id = $2
+            `,
+            [order.quantity, order.event_id]
+        );
+
+        // 4. Update order status
+        const result = await client.query(
+            `
+            UPDATE orders
+            SET
+                status = 'CANCELLED',
+                expires_at = NULL
+            WHERE id = $1
+            RETURNING *
+            `,
+            [id]
+        );
+
+        const cancelledOrder = result.rows[0];
+
+        // 5. Commit the transaction
+        await client.query('COMMIT');
+
+        // 6. Publish event after successful commit
+        publishOrderCancelled(cancelledOrder);
+
+        return cancelledOrder;
+
+    } catch (error) {
+
+        await client.query('ROLLBACK');
+
+        throw error;
+
+    } finally {
+
+        client.release();
     }
-
-    // 2. Only pending orders can be cancelled
-    if (order.status !== 'PENDING') {
-        throw new Error("Only pending orders can be cancelled");
-    }
-
-    // 3. Release the locked tickets
-    await pool.query(
-        `
-        UPDATE events
-        SET available_tickets = available_tickets + $1
-        WHERE id = $2
-        `,
-        [order.quantity, order.event_id]
-    );
-
-    // 4. Update order status
-    const result = await pool.query(
-        `
-        UPDATE orders
-        SET
-            status = 'CANCELLED',
-            expires_at = NULL
-        WHERE id = $1
-        RETURNING *
-        `,
-        [id]
-    );
-
-    return result.rows[0];
 };
 
 // Get all orders, optionally filtered by event_id and status
@@ -249,6 +294,9 @@ const expirePendingOrders = async () => {
 
         await client.query('COMMIT');
 
+        for (const order of expiredOrders) {
+            publishOrderCancelled(order);
+        }
 
         return expiredOrders;
 
