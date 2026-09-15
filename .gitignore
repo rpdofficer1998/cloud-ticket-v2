@@ -32,3 +32,6 @@ cloudticket.sql
 github-actions-cd-policy.json
 github-actions-trust-policy.json
 *.sql
+
+# LocalStack runtime data
+docker/localstack/

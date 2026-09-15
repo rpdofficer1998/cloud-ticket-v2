@@ -58,7 +58,7 @@ const createOrder = async ({
     await client.query('COMMIT'); 
 
     const order = orderResult.rows[0];
-    publishOrderCreated(order);
+    await publishOrderCreated(order);
 
     return order;
 
@@ -106,7 +106,7 @@ const payOrder = async (id) => {
     );
 
     const paidOrder =  result.rows[0];
-    publishPaymentSuccessful(paidOrder);
+    await publishPaymentSuccessful(paidOrder);
 
     return paidOrder;
 };
@@ -171,7 +171,7 @@ const cancelOrder = async (id) => {
         await client.query('COMMIT');
 
         // 6. Publish event after successful commit
-        publishOrderCancelled(cancelledOrder);
+        await publishOrderCancelled(cancelledOrder);
 
         return cancelledOrder;
 

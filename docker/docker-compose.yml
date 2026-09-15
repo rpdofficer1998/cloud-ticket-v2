@@ -32,9 +32,29 @@ services:
       DB_PASSWORD: ${DB_PASSWORD}
       DB_NAME: ${DB_NAME}
       DB_PORT: ${DB_PORT}
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
+      AWS_DEFAULT_REGION: ${AWS_DEFAULT_REGION}
+      SQS_QUEUE_NAME: ${SQS_QUEUE_NAME}
 
     depends_on:
       - postgres
+
+  localstack:
+    image: localstack/localstack:latest
+    container_name: cloudticket-localstack-v2
+
+    ports:
+      - "4566:4566"
+
+    environment:
+      SERVICES: sqs
+      AWS_DEFAULT_REGION: ap-southeast-2
+      LOCALSTACK_AUTH_TOKEN: ${LOCALSTACK_AUTH_TOKEN}
+
+    volumes:
+      - "${LOCALSTACK_VOLUME_DIR:-./localstack}:/var/lib/localstack"
+      - "/var/run/docker.sock:/var/run/docker.sock"
 
 volumes:
   cloudticket-postgres-volume-v2:
