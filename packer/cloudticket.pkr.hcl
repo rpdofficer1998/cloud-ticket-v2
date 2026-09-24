@@ -8,7 +8,7 @@ packer {
 }
 
 source "amazon-ebs" "cloudticket-v2" {
-  region = "ap-southeast-2"
+  region    = "ap-southeast-2"
   vpc_id    = "vpc-0c22d9f99052647ce"
   subnet_id = "subnet-0863bc92db752c217"
 
@@ -36,6 +36,6 @@ build {
   ]
 
   provisioner "shell" {
-    script = "scripts/install-docker.sh"
+    script = "scripts/install-base-tools.sh"
   }
 }

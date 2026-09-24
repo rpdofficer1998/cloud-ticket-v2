@@ -17,3 +17,8 @@ output "database_subnet_ids" {
   description = "IDs of the private database subnets"
   value       = module.vpc.database_subnets
 }
+
+output "private_route_table_ids" {
+  description = "IDs of the private application route tables"
+  value       = module.vpc.private_route_table_ids
+}

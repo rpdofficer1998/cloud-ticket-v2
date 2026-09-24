@@ -27,10 +27,7 @@ yarn-error.log*
 crash.log
 *.pem
 
-# PostgreSQL
-cloudticket.sql
-github-actions-cd-policy.json
-github-actions-trust-policy.json
+# Database dumps
 *.sql
 
 # LocalStack runtime data

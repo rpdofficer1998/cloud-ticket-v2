@@ -9,6 +9,6 @@ variable "environment" {
 }
 
 variable "kms_key_arn" {
-  description = "ARN of the KMS key used for SQS encryption"
+  description = "ARN of the KMS key used for ECR encryption"
   type        = string
 }
