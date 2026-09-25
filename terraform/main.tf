@@ -38,8 +38,10 @@ module "sqs" {
 module "iam" {
   source = "./modules/iam"
 
+  aws_region         = var.aws_region
   project_name       = var.project_name
   environment        = var.environment
+  ec2_instance_id    = module.ec2.instance_id
   sqs_queue_arn      = module.sqs.queue_arn
   ecr_repository_arn = module.ecr.repository_arn
 }

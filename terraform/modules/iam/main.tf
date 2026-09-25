@@ -1,3 +1,5 @@
+data "aws_caller_identity" "current" {}
+
 resource "aws_iam_role" "ec2" {
   name = "${var.project_name}-${var.environment}-ec2-role"
 
@@ -155,7 +157,37 @@ resource "aws_iam_policy" "github_actions_ecr" {
   })
 }
 
+resource "aws_iam_policy" "github_actions_ssm" {
+  name = "${var.project_name}-${var.environment}-github-actions-ssm"
+
+  description = "Allow GitHub Actions to deploy CloudTicket backend to the application EC2 instance via SSM"
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+
+    Statement = [
+      {
+        Effect = "Allow"
+
+        Action = [
+          "ssm:SendCommand"
+        ]
+
+        Resource = [
+          "arn:aws:ssm:${var.aws_region}:${data.aws_caller_identity.current.account_id}:document/AWS-RunShellScript",
+          "arn:aws:ec2:${var.aws_region}:${data.aws_caller_identity.current.account_id}:instance/${var.ec2_instance_id}"
+        ]
+      }
+    ]
+  })
+}
+
 resource "aws_iam_role_policy_attachment" "github_actions_ecr" {
   role       = aws_iam_role.github_actions.name
   policy_arn = aws_iam_policy.github_actions_ecr.arn
+}
+
+resource "aws_iam_role_policy_attachment" "github_actions_ssm" {
+  role       = aws_iam_role.github_actions.name
+  policy_arn = aws_iam_policy.github_actions_ssm.arn
 }

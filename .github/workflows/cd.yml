@@ -1,0 +1,89 @@
+name: CloudTicket-v2 CD
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  AWS_REGION: ap-southeast-2
+  ECR_REPOSITORY: cloudticket-v2-dev-backend
+  EC2_INSTANCE_ID: i-0165d424627204962
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. Get the source code
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # 2. Exchange GitHub OIDC token for AWS credentials
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::312957452590:role/cloudticket-v2-dev-github-actions-role
+          aws-region: ${{ env.AWS_REGION }}
+
+      # 3. Authenticate Docker with Amazon ECR
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      # 4. Build the backend Docker image
+      - name: Build Docker image
+        run: |
+          docker build \
+            -t $ECR_REPOSITORY:${{ github.sha }} \
+            ./backend
+
+      # 5. Tag the image with the ECR registry address
+      - name: Tag Docker image
+        run: |
+          docker tag \
+            $ECR_REPOSITORY:${{ github.sha }} \
+            ${{ steps.login-ecr.outputs.registry }}/$ECR_REPOSITORY:${{ github.sha }}
+
+      # 6. Push the image to ECR
+      - name: Push Docker image to ECR
+        run: |
+          docker push \
+            ${{ steps.login-ecr.outputs.registry }}/$ECR_REPOSITORY:${{ github.sha }}
+
+      # 7. Deploy the image to the private EC2 instance through SSM
+      - name: Deploy to EC2 via SSM
+        id: deploy-ssm
+        run: |
+          ECR_REGISTRY="${{ steps.login-ecr.outputs.registry }}"
+
+          COMMAND_ID=$(aws ssm send-command \
+            --instance-ids "$EC2_INSTANCE_ID" \
+            --document-name "AWS-RunShellScript" \
+            --parameters "commands=[
+              \"aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $ECR_REGISTRY\",
+              \"docker pull $ECR_REGISTRY/$ECR_REPOSITORY:${{ github.sha }}\",
+              \"docker stop cloudticket-backend-v2 || true\",
+              \"docker rm cloudticket-backend-v2 || true\",
+              \"docker run -d --name cloudticket-backend-v2 -p 3000:3000 $ECR_REGISTRY/$ECR_REPOSITORY:${{ github.sha }}\"
+            ]" \
+            --query 'Command.CommandId' \
+            --output text)
+
+          echo "SSM Command ID: $COMMAND_ID"
+          echo "command-id=$COMMAND_ID" >> "$GITHUB_OUTPUT"
+
+          aws ssm wait command-executed \
+            --command-id "$COMMAND_ID" \
+            --instance-id "$EC2_INSTANCE_ID"
+
+      # 8. Show the result of the deployment command
+      - name: Check deployment result
+        run: |
+          aws ssm get-command-invocation \
+            --command-id "${{ steps.deploy-ssm.outputs.command-id }}" \
+            --instance-id "$EC2_INSTANCE_ID"

@@ -1,3 +1,8 @@
+variable "aws_region" {
+  description = "AWS region"
+  type        = string
+}
+
 variable "project_name" {
   description = "Project name used for resource naming"
   type        = string
@@ -5,6 +10,11 @@ variable "project_name" {
 
 variable "environment" {
   description = "Deployment environment"
+  type        = string
+}
+
+variable "ec2_instance_id" {
+  description = "ID of the EC2 instance that GitHub Actions is allowed to deploy to via SSM"
   type        = string
 }
 
