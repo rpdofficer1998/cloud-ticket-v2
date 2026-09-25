@@ -108,7 +108,7 @@ resource "aws_iam_role" "github_actions" {
           StringEquals = {
             "token.actions.githubusercontent.com:aud" = "sts.amazonaws.com"
 
-            "token.actions.githubusercontent.com:sub" = "repo:rpdofficer1998/cloud-ticket-v2:ref:refs/heads/main"
+            "token.actions.githubusercontent.com:sub" = "repo:rpdofficer1998@211928079/cloud-ticket-v2@1367178337:ref:refs/heads/main"
           }
         }
       }
