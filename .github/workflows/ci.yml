@@ -1,4 +1,4 @@
-name: CloudTicket CI
+name: CloudTicket-v2 CI
 
 on:
   push:

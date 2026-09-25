@@ -38,9 +38,9 @@ module "sqs" {
 module "iam" {
   source = "./modules/iam"
 
-  project_name  = var.project_name
-  environment   = var.environment
-  sqs_queue_arn = module.sqs.queue_arn
+  project_name       = var.project_name
+  environment        = var.environment
+  sqs_queue_arn      = module.sqs.queue_arn
   ecr_repository_arn = module.ecr.repository_arn
 }
 
