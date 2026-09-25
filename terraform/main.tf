@@ -7,6 +7,7 @@ module "networking" {
 module "security_groups" {
   source = "./modules/security-groups"
 
+  aws_region   = var.aws_region
   project_name = var.project_name
   environment  = var.environment
   vpc_id       = module.networking.vpc_id

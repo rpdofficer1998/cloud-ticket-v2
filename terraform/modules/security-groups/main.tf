@@ -1,3 +1,7 @@
+data "aws_prefix_list" "s3" {
+  name = "com.amazonaws.${var.aws_region}.s3"
+}
+
 resource "aws_security_group" "alb" {
   name        = "${var.project_name}-${var.environment}-alb-sg"
   description = "Security group for the Application Load Balancer"
@@ -62,6 +66,18 @@ resource "aws_vpc_security_group_egress_rule" "ec2_to_ecr" {
   description = "Allow HTTPS traffic to ECR interface endpoint"
 
   referenced_security_group_id = aws_security_group.ecr_endpoint.id
+
+  from_port   = 443
+  to_port     = 443
+  ip_protocol = "tcp"
+}
+
+resource "aws_vpc_security_group_egress_rule" "ec2_to_s3" {
+  security_group_id = aws_security_group.ec2.id
+
+  description = "Allow HTTPS traffic to Amazon S3 via Gateway Endpoint"
+
+  prefix_list_id = data.aws_prefix_list.s3.id
 
   from_port   = 443
   to_port     = 443
