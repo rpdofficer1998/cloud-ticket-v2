@@ -10,11 +10,36 @@ resource "aws_ecr_repository" "backend" {
     kms_key         = var.kms_key_arn
   }
 
-  image_tag_mutability = "MUTABLE"
+  image_tag_mutability = "IMMUTABLE"
 
   tags = {
     Name        = "${var.project_name}-${var.environment}-backend"
     Project     = var.project_name
     Environment = var.environment
   }
+}
+
+resource "aws_ecr_lifecycle_policy" "backend" {
+  repository = aws_ecr_repository.backend.name
+
+  policy = jsonencode({
+    rules = [
+      {
+        rulePriority = 1
+
+        description = "Keep the 2 most recent images"
+
+        selection = {
+          tagStatus      = "tagged"
+          tagPatternList = ["*"]
+          countType      = "imageCountMoreThan"
+          countNumber    = 2
+        }
+
+        action = {
+          type = "expire"
+        }
+      }
+    ]
+  })
 }
