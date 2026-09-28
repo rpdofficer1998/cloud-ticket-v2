@@ -227,7 +227,8 @@ resource "aws_iam_policy" "github_actions_ssm" {
         Effect = "Allow"
 
         Action = [
-          "ssm:GetCommandInvocation"
+          "ssm:GetCommandInvocation",
+          "ssm:ListCommandInvocations"
         ]
 
         Resource = "*"
