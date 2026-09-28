@@ -22,3 +22,8 @@ output "ecr_dkr_endpoint_id" {
   description = "ID of the ECR Docker interface VPC endpoint"
   value       = aws_vpc_endpoint.ecr_dkr.id
 }
+
+output "secrets_manager_endpoint_id" {
+  description = "ID of the Secrets Manager interface VPC endpoint"
+  value       = aws_vpc_endpoint.secrets_manager.id
+}

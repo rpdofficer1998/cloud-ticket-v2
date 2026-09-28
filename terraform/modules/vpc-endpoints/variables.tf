@@ -37,3 +37,8 @@ variable "ecr_security_group_ids" {
   description = "Security group IDs attached to ECR interface endpoints"
   type        = list(string)
 }
+
+variable "secrets_manager_security_group_ids" {
+  description = "Security group IDs attached to Secrets Manager interface endpoints"
+  type        = list(string)
+}

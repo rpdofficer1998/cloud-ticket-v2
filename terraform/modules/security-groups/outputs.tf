@@ -19,6 +19,11 @@ output "ssm_endpoint_security_group_id" {
 }
 
 output "ecr_endpoint_security_group_id" {
-  description = "Security group ID for ECR interface VPC endpoints"
+  description = "ID of the ECR interface endpoint security group"
   value       = aws_security_group.ecr_endpoint.id
+}
+
+output "secrets_manager_endpoint_security_group_id" {
+  description = "ID of the Secrets Manager interface endpoint security group"
+  value       = aws_security_group.secrets_manager_endpoint.id
 }

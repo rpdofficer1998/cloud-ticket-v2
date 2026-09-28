@@ -47,6 +47,27 @@ resource "aws_iam_policy" "ec2_sqs" {
   })
 }
 
+resource "aws_iam_policy" "ec2_secrets_manager" {
+  name        = "${var.project_name}-${var.environment}-ec2-secrets-manager"
+  description = "Allow CloudTicket EC2 instances to read the RDS master credentials from Secrets Manager"
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+
+    Statement = [
+      {
+        Effect = "Allow"
+
+        Action = [
+          "secretsmanager:GetSecretValue"
+        ]
+
+        Resource = var.rds_secret_arn
+      }
+    ]
+  })
+}
+
 resource "aws_iam_role_policy_attachment" "ec2_ssm" {
   role       = aws_iam_role.ec2.name
   policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
@@ -60,6 +81,11 @@ resource "aws_iam_role_policy_attachment" "ec2_ecr" {
 resource "aws_iam_role_policy_attachment" "ec2_sqs" {
   role       = aws_iam_role.ec2.name
   policy_arn = aws_iam_policy.ec2_sqs.arn
+}
+
+resource "aws_iam_role_policy_attachment" "ec2_secrets_manager" {
+  role       = aws_iam_role.ec2.name
+  policy_arn = aws_iam_policy.ec2_secrets_manager.arn
 }
 
 resource "aws_iam_instance_profile" "ec2" {
@@ -174,9 +200,27 @@ resource "aws_iam_policy" "github_actions_ssm" {
         ]
 
         Resource = [
-          "arn:aws:ssm:${var.aws_region}::document/AWS-RunShellScript",
-          "arn:aws:ec2:${var.aws_region}:${data.aws_caller_identity.current.account_id}:instance/${var.ec2_instance_id}"
+          "arn:aws:ssm:${var.aws_region}::document/AWS-RunShellScript"
         ]
+      },
+
+      {
+        Effect = "Allow"
+
+        Action = [
+          "ssm:SendCommand"
+        ]
+
+        Resource = [
+          "arn:aws:ec2:${var.aws_region}:${data.aws_caller_identity.current.account_id}:instance/*"
+        ]
+
+        Condition = {
+          StringEquals = {
+            "ssm:resourceTag/Project"     = var.project_name
+            "ssm:resourceTag/Environment" = var.environment
+          }
+        }
       },
 
       {

@@ -24,3 +24,14 @@ variable "ami_id" {
   description = "AMI ID for the EC2 instance"
   type        = string
 }
+
+variable "db_username" {
+  description = "Master username for the PostgreSQL database"
+  type        = string
+}
+
+variable "rds_availability_zone" {
+  description = "Availability Zone for the CloudTicket RDS instance"
+  type        = string
+  default     = "ap-southeast-2a"
+}

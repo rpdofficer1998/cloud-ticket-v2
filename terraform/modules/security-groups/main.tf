@@ -48,6 +48,30 @@ resource "aws_security_group" "ec2" {
   }
 }
 
+resource "aws_vpc_security_group_egress_rule" "ec2_to_s3" {
+  security_group_id = aws_security_group.ec2.id
+
+  description = "Allow HTTPS traffic to Amazon S3 via Gateway Endpoint"
+
+  prefix_list_id = data.aws_prefix_list.s3.id
+
+  from_port   = 443
+  to_port     = 443
+  ip_protocol = "tcp"
+}
+
+resource "aws_vpc_security_group_egress_rule" "ec2_to_rds" {
+  security_group_id = aws_security_group.ec2.id
+
+  description = "Allow PostgreSQL traffic to RDS"
+
+  referenced_security_group_id = aws_security_group.rds.id
+
+  from_port   = 5432
+  to_port     = 5432
+  ip_protocol = "tcp"
+}
+
 resource "aws_vpc_security_group_egress_rule" "ec2_to_ssm" {
   security_group_id = aws_security_group.ec2.id
 
@@ -72,12 +96,12 @@ resource "aws_vpc_security_group_egress_rule" "ec2_to_ecr" {
   ip_protocol = "tcp"
 }
 
-resource "aws_vpc_security_group_egress_rule" "ec2_to_s3" {
+resource "aws_vpc_security_group_egress_rule" "ec2_to_secrets_manager" {
   security_group_id = aws_security_group.ec2.id
 
-  description = "Allow HTTPS traffic to Amazon S3 via Gateway Endpoint"
+  description = "Allow HTTPS traffic to Secrets Manager interface endpoint"
 
-  prefix_list_id = data.aws_prefix_list.s3.id
+  referenced_security_group_id = aws_security_group.secrets_manager_endpoint.id
 
   from_port   = 443
   to_port     = 443
@@ -155,6 +179,30 @@ resource "aws_security_group" "ecr_endpoint" {
 
 resource "aws_vpc_security_group_ingress_rule" "ecr_from_ec2" {
   security_group_id = aws_security_group.ecr_endpoint.id
+
+  description = "Allow HTTPS traffic from EC2 instances"
+
+  referenced_security_group_id = aws_security_group.ec2.id
+
+  from_port   = 443
+  to_port     = 443
+  ip_protocol = "tcp"
+}
+
+resource "aws_security_group" "secrets_manager_endpoint" {
+  name        = "${var.project_name}-${var.environment}-secrets-manager-endpoint"
+  description = "Security group for the Secrets Manager interface endpoint"
+  vpc_id      = var.vpc_id
+
+  tags = {
+    Name        = "${var.project_name}-${var.environment}-secrets-manager-endpoint"
+    Project     = var.project_name
+    Environment = var.environment
+  }
+}
+
+resource "aws_vpc_security_group_ingress_rule" "secrets_manager_from_ec2" {
+  security_group_id = aws_security_group.secrets_manager_endpoint.id
 
   description = "Allow HTTPS traffic from EC2 instances"
 

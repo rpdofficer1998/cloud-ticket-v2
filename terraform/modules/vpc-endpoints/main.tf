@@ -93,3 +93,23 @@ resource "aws_vpc_endpoint" "ecr_dkr" {
     Environment = var.environment
   }
 }
+
+resource "aws_vpc_endpoint" "secrets_manager" {
+  vpc_id = var.vpc_id
+
+  service_name = "com.amazonaws.${var.aws_region}.secretsmanager"
+
+  vpc_endpoint_type = "Interface"
+
+  subnet_ids = var.subnet_ids
+
+  security_group_ids = var.secrets_manager_security_group_ids
+
+  private_dns_enabled = true
+
+  tags = {
+    Name        = "${var.project_name}-${var.environment}-secrets-manager-endpoint"
+    Project     = var.project_name
+    Environment = var.environment
+  }
+}
