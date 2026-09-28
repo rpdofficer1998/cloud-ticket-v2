@@ -1,9 +1,7 @@
 name: CloudTicket-v2 CD
 
 on:
-  push:
-    branches:
-      - main
+  workflow_dispatch:
 
 permissions:
   id-token: write
@@ -12,7 +10,10 @@ permissions:
 env:
   AWS_REGION: ap-southeast-2
   ECR_REPOSITORY: cloudticket-v2-dev-backend
-  EC2_INSTANCE_ID: i-0165d424627204962
+
+  # EC2 instances are selected by these tags.
+  EC2_PROJECT_TAG: cloudticket-v2
+  EC2_ENVIRONMENT_TAG: dev
 
 jobs:
   deploy:
@@ -55,14 +56,16 @@ jobs:
           docker push \
             ${{ steps.login-ecr.outputs.registry }}/$ECR_REPOSITORY:${{ github.sha }}
 
-      # 7. Deploy the image to the private EC2 instance through SSM
+      # 7. Deploy the image to private EC2 instances through SSM
       - name: Deploy to EC2 via SSM
         id: deploy-ssm
         run: |
           ECR_REGISTRY="${{ steps.login-ecr.outputs.registry }}"
 
           COMMAND_ID=$(aws ssm send-command \
-            --instance-ids "$EC2_INSTANCE_ID" \
+            --targets \
+              "Key=tag:Project,Values=$EC2_PROJECT_TAG" \
+              "Key=tag:Environment,Values=$EC2_ENVIRONMENT_TAG" \
             --document-name "AWS-RunShellScript" \
             --parameters "commands=[
               \"aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $ECR_REGISTRY\",
@@ -77,13 +80,42 @@ jobs:
           echo "SSM Command ID: $COMMAND_ID"
           echo "command-id=$COMMAND_ID" >> "$GITHUB_OUTPUT"
 
-          aws ssm wait command-executed \
-            --command-id "$COMMAND_ID" \
-            --instance-id "$EC2_INSTANCE_ID"
+          # Wait for deployment to complete
+          for i in {1..60}; do
+            STATUS=$(aws ssm list-command-invocations \
+              --command-id "$COMMAND_ID" \
+              --details \
+              --query 'CommandInvocations[].Status' \
+              --output text)
+
+            echo "Current status: $STATUS"
+
+            # Fail if any targeted instance fails.
+            if echo "$STATUS" | grep -qE 'Failed|Cancelled|TimedOut'; then
+              echo "Deployment failed."
+              exit 1
+            fi
+
+            # Succeed only when all returned invocations are finished.
+            if [ -n "$STATUS" ] && \
+              ! echo "$STATUS" | grep -qE 'Pending|InProgress'; then
+              echo "Deployment completed."
+              break
+            fi
+
+            sleep 5
+          done
+
+          # Make sure the loop did not simply run out of time.
+          if echo "$STATUS" | grep -qE 'Pending|InProgress' || [ -z "$STATUS" ]; then
+            echo "Deployment timed out or no target instance was found."
+            exit 1
+          fi
 
       # 8. Show the result of the deployment command
       - name: Check deployment result
         run: |
-          aws ssm get-command-invocation \
+          # Show deployment results for all targeted EC2 instances.
+          aws ssm list-command-invocations \
             --command-id "${{ steps.deploy-ssm.outputs.command-id }}" \
-            --instance-id "$EC2_INSTANCE_ID"
+            --details
