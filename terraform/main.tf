@@ -39,12 +39,19 @@ module "sqs" {
 module "iam" {
   source = "./modules/iam"
 
-  aws_region         = var.aws_region
-  project_name       = var.project_name
-  environment        = var.environment
-  sqs_queue_arn      = module.sqs.queue_arn
+  aws_region   = var.aws_region
+  project_name = var.project_name
+  environment  = var.environment
+
+  sqs_queue_arn   = module.sqs.queue_arn
+  sqs_kms_key_arn = module.kms.kms_key_arn
+
   ecr_repository_arn = module.ecr.repository_arn
   rds_secret_arn     = module.rds.master_user_secret_arn
+
+  frontend_bucket_arn         = module.s3.bucket_arn
+  cloudfront_distribution_arn = module.cloudfront.distribution_arn
+
 }
 
 module "vpc_endpoints" {
@@ -71,6 +78,10 @@ module "vpc_endpoints" {
 
   secrets_manager_security_group_ids = [
     module.security_groups.secrets_manager_endpoint_security_group_id
+  ]
+
+  sqs_security_group_ids = [
+    module.security_groups.sqs_endpoint_security_group_id
   ]
 }
 
@@ -119,6 +130,6 @@ module "cloudfront" {
   project_name = var.project_name
   environment  = var.environment
 
-  s3_bucket_id  = module.s3.bucket_id
-  s3_bucket_arn = module.s3.bucket_arn
+  s3_bucket_name = module.s3.bucket_name
+  s3_bucket_arn  = module.s3.bucket_arn
 }

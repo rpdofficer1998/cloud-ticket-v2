@@ -47,6 +47,28 @@ resource "aws_iam_policy" "ec2_sqs" {
   })
 }
 
+resource "aws_iam_policy" "ec2_sqs_kms" {
+  name        = "${var.project_name}-${var.environment}-ec2-sqs-kms"
+  description = "Allow CloudTicket EC2 instances to use the KMS key for SQS encryption"
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+
+    Statement = [
+      {
+        Effect = "Allow"
+
+        Action = [
+          "kms:GenerateDataKey",
+          "kms:Decrypt"
+        ]
+
+        Resource = var.sqs_kms_key_arn
+      }
+    ]
+  })
+}
+
 resource "aws_iam_policy" "ec2_secrets_manager" {
   name        = "${var.project_name}-${var.environment}-ec2-secrets-manager"
   description = "Allow CloudTicket EC2 instances to read the RDS master credentials from Secrets Manager"
@@ -81,6 +103,11 @@ resource "aws_iam_role_policy_attachment" "ec2_ecr" {
 resource "aws_iam_role_policy_attachment" "ec2_sqs" {
   role       = aws_iam_role.ec2.name
   policy_arn = aws_iam_policy.ec2_sqs.arn
+}
+
+resource "aws_iam_role_policy_attachment" "ec2_sqs_kms" {
+  role       = aws_iam_role.ec2.name
+  policy_arn = aws_iam_policy.ec2_sqs_kms.arn
 }
 
 resource "aws_iam_role_policy_attachment" "ec2_secrets_manager" {
@@ -237,6 +264,61 @@ resource "aws_iam_policy" "github_actions_ssm" {
   })
 }
 
+resource "aws_iam_policy" "github_actions_s3" {
+  name = "${var.project_name}-${var.environment}-github-actions-s3"
+
+  description = "Allow GitHub Actions to deploy the CloudTicket frontend to S3"
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+
+    Statement = [
+      {
+        Effect = "Allow"
+
+        Action = [
+          "s3:ListBucket"
+        ]
+
+        Resource = var.frontend_bucket_arn
+      },
+
+      {
+        Effect = "Allow"
+
+        Action = [
+          "s3:PutObject",
+          "s3:DeleteObject"
+        ]
+
+        Resource = "${var.frontend_bucket_arn}/*"
+      }
+    ]
+  })
+}
+
+resource "aws_iam_policy" "github_actions_cloudfront" {
+  name = "${var.project_name}-${var.environment}-github-actions-cloudfront"
+
+  description = "Allow GitHub Actions to invalidate the CloudTicket CloudFront distribution"
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+
+    Statement = [
+      {
+        Effect = "Allow"
+
+        Action = [
+          "cloudfront:CreateInvalidation"
+        ]
+
+        Resource = var.cloudfront_distribution_arn
+      }
+    ]
+  })
+}
+
 resource "aws_iam_role_policy_attachment" "github_actions_ecr" {
   role       = aws_iam_role.github_actions.name
   policy_arn = aws_iam_policy.github_actions_ecr.arn
@@ -245,4 +327,14 @@ resource "aws_iam_role_policy_attachment" "github_actions_ecr" {
 resource "aws_iam_role_policy_attachment" "github_actions_ssm" {
   role       = aws_iam_role.github_actions.name
   policy_arn = aws_iam_policy.github_actions_ssm.arn
+}
+
+resource "aws_iam_role_policy_attachment" "github_actions_s3" {
+  role       = aws_iam_role.github_actions.name
+  policy_arn = aws_iam_policy.github_actions_s3.arn
+}
+
+resource "aws_iam_role_policy_attachment" "github_actions_cloudfront" {
+  role       = aws_iam_role.github_actions.name
+  policy_arn = aws_iam_policy.github_actions_cloudfront.arn
 }

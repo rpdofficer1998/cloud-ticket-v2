@@ -19,8 +19,8 @@ resource "aws_cloudfront_distribution" "frontend" {
   default_root_object = "index.html"
 
   origin {
-    domain_name              = "${var.s3_bucket_id}.s3.amazonaws.com"
-    origin_id                = "S3-${var.s3_bucket_id}"
+    domain_name              = "${var.s3_bucket_name}.s3.amazonaws.com"
+    origin_id                = "S3-${var.s3_bucket_name}"
     origin_access_control_id = aws_cloudfront_origin_access_control.frontend.id
   }
 
@@ -35,7 +35,7 @@ resource "aws_cloudfront_distribution" "frontend" {
       "HEAD"
     ]
 
-    target_origin_id = "S3-${var.s3_bucket_id}"
+    target_origin_id = "S3-${var.s3_bucket_name}"
 
     viewer_protocol_policy = "redirect-to-https"
 
@@ -65,7 +65,7 @@ resource "aws_cloudfront_distribution" "frontend" {
 
 # Avoid circular dependencies between modules
 resource "aws_s3_bucket_policy" "frontend" {
-  bucket = var.s3_bucket_id
+  bucket = var.s3_bucket_name
 
   policy = jsonencode({
     Version = "2012-10-17"

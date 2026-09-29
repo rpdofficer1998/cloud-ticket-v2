@@ -37,3 +37,11 @@ output "ecr_repository_url" {
   description = "URL of the CloudTicket backend ECR repository"
   value       = module.ecr.repository_url
 }
+
+output "frontend_bucket_name" {
+  value = module.s3.bucket_name
+}
+
+output "cloudfront_distribution_id" {
+  value = module.cloudfront.distribution_id
+}

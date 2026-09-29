@@ -9,7 +9,7 @@ resource "aws_s3_bucket" "frontend" {
 }
 
 resource "aws_s3_bucket_versioning" "frontend" {
-  bucket = aws_s3_bucket.frontend.id
+  bucket = aws_s3_bucket.frontend.bucket
 
   versioning_configuration {
     status = "Enabled"
@@ -17,7 +17,7 @@ resource "aws_s3_bucket_versioning" "frontend" {
 }
 
 resource "aws_s3_bucket_server_side_encryption_configuration" "frontend" {
-  bucket = aws_s3_bucket.frontend.id
+  bucket = aws_s3_bucket.frontend.bucket
 
   rule {
     apply_server_side_encryption_by_default {
@@ -27,7 +27,7 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "frontend" {
 }
 
 resource "aws_s3_bucket_public_access_block" "frontend" {
-  bucket = aws_s3_bucket.frontend.id
+  bucket = aws_s3_bucket.frontend.bucket
 
   block_public_acls       = true
   block_public_policy     = true
@@ -36,7 +36,7 @@ resource "aws_s3_bucket_public_access_block" "frontend" {
 }
 
 resource "aws_s3_bucket_ownership_controls" "frontend" {
-  bucket = aws_s3_bucket.frontend.id
+  bucket = aws_s3_bucket.frontend.bucket
 
   rule {
     object_ownership = "BucketOwnerEnforced"

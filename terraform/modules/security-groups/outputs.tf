@@ -27,3 +27,8 @@ output "secrets_manager_endpoint_security_group_id" {
   description = "ID of the Secrets Manager interface endpoint security group"
   value       = aws_security_group.secrets_manager_endpoint.id
 }
+
+output "sqs_endpoint_security_group_id" {
+  description = "ID of the SQS interface endpoint security group"
+  value       = aws_security_group.sqs_endpoint.id
+}
