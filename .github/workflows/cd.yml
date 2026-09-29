@@ -11,6 +11,9 @@ env:
   AWS_REGION: ap-southeast-2
   ECR_REPOSITORY: cloudticket-v2-dev-backend
 
+  RDS_ENDPOINT: ${{ vars.RDS_ENDPOINT }}
+  RDS_SECRET_ARN: ${{ vars.RDS_SECRET_ARN }}
+
   # EC2 instances are selected by these tags.
   EC2_PROJECT_TAG: cloudticket-v2
   EC2_ENVIRONMENT_TAG: dev
@@ -68,11 +71,18 @@ jobs:
               "Key=tag:Environment,Values=$EC2_ENVIRONMENT_TAG" \
             --document-name "AWS-RunShellScript" \
             --parameters "commands=[
+              \"set -e\",
               \"aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $ECR_REGISTRY\",
               \"docker pull $ECR_REGISTRY/$ECR_REPOSITORY:${{ github.sha }}\",
+              \"SECRET_JSON=\\$(aws secretsmanager get-secret-value --secret-id '${RDS_SECRET_ARN}' --region $AWS_REGION --query SecretString --output text)\",
+              \"DB_USER=\\$(echo \\\"\\$SECRET_JSON\\\" | jq -r .username)\",
+              \"DB_PASSWORD=\\$(echo \\\"\\$SECRET_JSON\\\" | jq -r .password)\",
+              \"DB_HOST='${RDS_ENDPOINT}'\",
+              \"DB_NAME='cloudticketv2'\",
               \"docker stop cloudticket-backend-v2 || true\",
               \"docker rm cloudticket-backend-v2 || true\",
-              \"docker run -d --name cloudticket-backend-v2 -p 3000:3000 $ECR_REGISTRY/$ECR_REPOSITORY:${{ github.sha }}\"
+              \"docker run -d --name cloudticket-backend-v2 -p 3000:3000 -e NODE_ENV=production -e AWS_DEFAULT_REGION=\\\"$AWS_REGION\\\" -e SQS_QUEUE_NAME=cloudticket-v2-dev-orders -e DB_HOST=\\\"\\$DB_HOST\\\" -e DB_PORT=5432 -e DB_NAME=\\\"\\$DB_NAME\\\" -e DB_USER=\\\"\\$DB_USER\\\" -e DB_PASSWORD=\\\"\\$DB_PASSWORD\\\" $ECR_REGISTRY/$ECR_REPOSITORY:${{ github.sha }}\",
+              \"unset SECRET_JSON DB_USER DB_PASSWORD DB_HOST DB_NAME\"
             ]" \
             --query 'Command.CommandId' \
             --output text)

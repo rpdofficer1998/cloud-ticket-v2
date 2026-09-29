@@ -45,3 +45,14 @@ output "frontend_bucket_name" {
 output "cloudfront_distribution_id" {
   value = module.cloudfront.distribution_id
 }
+
+output "rds_endpoint" {
+  description = "Endpoint address of the CloudTicket RDS PostgreSQL instance"
+  value       = module.rds.db_endpoint
+}
+
+output "rds_master_user_secret_arn" {
+  description = "ARN of the Secrets Manager secret containing the RDS master credentials"
+  value       = module.rds.master_user_secret_arn
+  sensitive   = true
+}
