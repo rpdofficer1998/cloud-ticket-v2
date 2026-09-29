@@ -119,3 +119,18 @@ jobs:
           aws ssm list-command-invocations \
             --command-id "${{ steps.deploy-ssm.outputs.command-id }}" \
             --details
+
+      # 9. Deploy frontend files to Amazon S3
+      - name: Deploy frontend to S3
+        run: |
+          aws s3 sync \
+            ./frontend/ \
+            s3://cloudticket-v2-dev-frontend \
+            --delete
+
+      # 10. Invalidate CloudFront cache
+      - name: Invalidate CloudFront cache
+        run: |
+          aws cloudfront create-invalidation \
+            --distribution-id EJBDE9RXM8R0T \
+            --paths "/*"
