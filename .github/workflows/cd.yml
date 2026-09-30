@@ -110,7 +110,7 @@ jobs:
               "Key=tag:Project,Values=$EC2_PROJECT_TAG" \
               "Key=tag:Environment,Values=$EC2_ENVIRONMENT_TAG" \
             --document-name "AWS-RunShellScript" \
-            --parameters "commands=$(jq -Rs '[.]' deploy.sh)" \
+            --parameters "commands=$(jq -R -s 'split(\"\n\") | map(select(length > 0))' deploy.sh)" \
             --query 'Command.CommandId' \
             --output text)
 
