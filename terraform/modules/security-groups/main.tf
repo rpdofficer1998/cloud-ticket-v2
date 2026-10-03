@@ -36,6 +36,15 @@ resource "aws_vpc_security_group_ingress_rule" "alb_https" {
   ip_protocol = "tcp"
 }
 
+resource "aws_vpc_security_group_egress_rule" "alb_to_ec2" {
+  security_group_id            = aws_security_group.alb.id
+  description                  = "Allow HTTP traffic to EC2 application instances"
+  referenced_security_group_id = aws_security_group.ec2.id
+  from_port                    = 3000
+  to_port                      = 3000
+  ip_protocol                  = "tcp"
+}
+
 resource "aws_security_group" "ec2" {
   name        = "${var.project_name}-${var.environment}-ec2-sg"
   description = "Security group for EC2 application instances"

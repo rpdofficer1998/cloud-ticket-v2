@@ -1,3 +1,49 @@
+data "aws_route53_zone" "main" {
+  name         = "neotanzy.site"
+  private_zone = false
+}
+
+resource "aws_route53_record" "alb" {
+  zone_id = data.aws_route53_zone.main.zone_id
+  name    = var.alb_domain_name
+  type    = "A"
+
+  alias {
+    name                   = module.alb.alb_dns_name
+    zone_id                = module.alb.alb_zone_id
+    evaluate_target_health = true
+  }
+}
+
+resource "aws_route53_record" "cloudfront" {
+  zone_id = data.aws_route53_zone.main.zone_id
+  name    = var.cloudfront_domain_name
+  type    = "A"
+
+  alias {
+    name                   = module.cloudfront.distribution_domain_name
+    zone_id                = module.cloudfront.distribution_hosted_zone_id
+    evaluate_target_health = false
+  }
+}
+
+module "dns_records" {
+  source = "./modules/dns-records"
+
+  providers = {
+    aws           = aws
+    aws.us_east_1 = aws.us_east_1
+  }
+
+  zone_id = data.aws_route53_zone.main.zone_id
+
+  alb_certificate_arn                       = module.alb_acm.certificate_arn
+  alb_certificate_domain_validation_options = module.alb_acm.domain_validation_options
+
+  cloudfront_certificate_arn                       = module.cloudfront_acm.certificate_arn
+  cloudfront_certificate_domain_validation_options = module.cloudfront_acm.domain_validation_options
+}
+
 module "networking" {
   source = "./modules/networking"
 
@@ -132,4 +178,54 @@ module "cloudfront" {
 
   s3_bucket_name = module.s3.bucket_name
   s3_bucket_arn  = module.s3.bucket_arn
+
+  alb_origin_dns_name = var.alb_domain_name
+
+  certificate_arn = module.dns_records.validated_cloudfront_certificate_arn
+
+  cloudfront_domain_name = var.cloudfront_domain_name
+}
+
+module "cloudfront_acm" {
+  source = "./modules/acm"
+
+  providers = {
+    aws = aws.us_east_1
+  }
+
+  project_name = var.project_name
+  environment  = var.environment
+
+  domain_name      = var.cloudfront_domain_name
+  certificate_name = "cloudfront-certificate"
+}
+
+module "alb_acm" {
+  source = "./modules/acm"
+
+  project_name = var.project_name
+  environment  = var.environment
+
+  domain_name      = var.alb_domain_name
+  certificate_name = "alb-certificate"
+}
+
+module "alb" {
+  source = "./modules/alb"
+
+  project_name = var.project_name
+  environment  = var.environment
+
+  vpc_id = module.networking.vpc_id
+
+  public_subnet_ids = module.networking.public_subnet_ids
+
+  security_group_id = module.security_groups.alb_security_group_id
+
+  ec2_instance_id = module.ec2.instance_id
+
+  target_port       = 3000
+  health_check_path = "/"
+
+  certificate_arn = module.dns_records.validated_alb_certificate_arn
 }

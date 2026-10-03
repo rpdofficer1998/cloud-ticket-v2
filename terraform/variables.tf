@@ -35,3 +35,13 @@ variable "rds_availability_zone" {
   type        = string
   default     = "ap-southeast-2a"
 }
+
+variable "cloudfront_domain_name" {
+  description = "CloudFront domain name for the CloudTicket v2 application"
+  type        = string
+}
+
+variable "alb_domain_name" {
+  description = "Domain name for the Application Load Balancer"
+  type        = string
+}

@@ -2,6 +2,10 @@ data "aws_cloudfront_cache_policy" "caching_optimized" {
   name = "Managed-CachingOptimized"
 }
 
+data "aws_cloudfront_cache_policy" "caching_disabled" {
+  name = "Managed-CachingDisabled"
+}
+
 resource "aws_cloudfront_origin_access_control" "frontend" {
   name                              = "${var.project_name}-${var.environment}-frontend-oac"
   description                       = "OAC for CloudTicket frontend S3 bucket"
@@ -16,12 +20,29 @@ resource "aws_cloudfront_distribution" "frontend" {
 
   comment = "${var.project_name}-${var.environment} frontend"
 
+  aliases = [var.cloudfront_domain_name]
+
   default_root_object = "index.html"
 
   origin {
     domain_name              = "${var.s3_bucket_name}.s3.amazonaws.com"
     origin_id                = "S3-${var.s3_bucket_name}"
     origin_access_control_id = aws_cloudfront_origin_access_control.frontend.id
+  }
+
+  origin {
+    domain_name = var.alb_origin_dns_name
+    origin_id   = "ALB-${var.alb_origin_dns_name}"
+
+    custom_origin_config {
+      http_port              = 80
+      https_port             = 443
+      origin_protocol_policy = "https-only"
+
+      origin_ssl_protocols = [
+        "TLSv1.2"
+      ]
+    }
   }
 
   default_cache_behavior {
@@ -44,6 +65,33 @@ resource "aws_cloudfront_distribution" "frontend" {
     cache_policy_id = data.aws_cloudfront_cache_policy.caching_optimized.id
   }
 
+  ordered_cache_behavior {
+    path_pattern = "/api/*"
+
+    allowed_methods = [
+      "GET",
+      "HEAD",
+      "OPTIONS",
+      "PUT",
+      "POST",
+      "PATCH",
+      "DELETE"
+    ]
+
+    cached_methods = [
+      "GET",
+      "HEAD"
+    ]
+
+    target_origin_id = "ALB-${var.alb_origin_dns_name}"
+
+    viewer_protocol_policy = "https-only"
+
+    compress = true
+
+    cache_policy_id = data.aws_cloudfront_cache_policy.caching_disabled.id
+  }
+
   restrictions {
     geo_restriction {
       restriction_type = "none"
@@ -51,7 +99,9 @@ resource "aws_cloudfront_distribution" "frontend" {
   }
 
   viewer_certificate {
-    cloudfront_default_certificate = true
+    acm_certificate_arn      = var.certificate_arn
+    ssl_support_method       = "sni-only"
+    minimum_protocol_version = "TLSv1.2_2021"
   }
 
   price_class = "PriceClass_100"
