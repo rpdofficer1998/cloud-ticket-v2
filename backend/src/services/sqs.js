@@ -1,6 +1,5 @@
 const {
   SQSClient,
-  GetQueueUrlCommand,
   SendMessageCommand,
 } = require("@aws-sdk/client-sqs");
 
@@ -13,21 +12,12 @@ const sqsClient = new SQSClient({
       : "http://localstack:4566",
 });
 
-const queueName =
-  process.env.SQS_QUEUE_NAME || "cloudticket-order-events";
-
-async function getQueueUrl() {
-  const result = await sqsClient.send(
-    new GetQueueUrlCommand({
-      QueueName: queueName,
-    })
-  );
-
-  return result.QueueUrl;
-}
+const queueUrl = process.env.SQS_QUEUE_URL;
 
 async function sendMessage(message) {
-  const queueUrl = await getQueueUrl();
+  if (!queueUrl) {
+    throw new Error("SQS_QUEUE_URL is not configured");
+  }
 
   return sqsClient.send(
     new SendMessageCommand({
@@ -39,6 +29,5 @@ async function sendMessage(message) {
 
 module.exports = {
   sqsClient,
-  getQueueUrl,
   sendMessage,
 };

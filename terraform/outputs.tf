@@ -56,3 +56,7 @@ output "rds_master_user_secret_arn" {
   value       = module.rds.master_user_secret_arn
   sensitive   = true
 }
+
+output "queue_url" {
+  value = module.sqs.queue_url
+}

@@ -1,6 +1,10 @@
 name: CloudTicket-v2 CD
 
 on:
+  push:
+    branches:
+      - main
+      
   workflow_dispatch:
 
 permissions:
@@ -9,10 +13,13 @@ permissions:
 
 env:
   AWS_REGION: ap-southeast-2
+
   ECR_REPOSITORY: cloudticket-v2-dev-backend
 
   RDS_ENDPOINT: ${{ vars.RDS_ENDPOINT }}
   RDS_SECRET_ARN: ${{ vars.RDS_SECRET_ARN }}
+
+  SQS_QUEUE_URL: ${{ vars.SQS_QUEUE_URL }}
 
   # EC2 instances are selected by these tags.
   EC2_PROJECT_TAG: cloudticket-v2
@@ -93,10 +100,11 @@ jobs:
 
           docker run -d \
             --name cloudticket-backend-v2 \
+            --restart unless-stopped \
             -p 3000:3000 \
             -e NODE_ENV=production \
             -e AWS_DEFAULT_REGION="$AWS_REGION" \
-            -e SQS_QUEUE_NAME=cloudticket-v2-dev-orders \
+            -e SQS_QUEUE_URL="$SQS_QUEUE_URL" \
             -e DB_HOST="\$DB_HOST" \
             -e DB_PORT=5432 \
             -e DB_NAME="\$DB_NAME" \
