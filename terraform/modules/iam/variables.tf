@@ -28,6 +28,16 @@ variable "ecr_repository_arn" {
   type        = string
 }
 
+variable "image_tag_parameter_arn" {
+  description = "ARN of the SSM Parameter Store parameter containing the current backend image tag"
+  type        = string
+}
+
+variable "asg_arn" {
+  description = "ARN of the Auto Scaling Group that GitHub Actions is allowed to refresh"
+  type        = string
+}
+
 variable "rds_secret_arn" {
   description = "ARN of the RDS master user secret in Secrets Manager"
   type        = string

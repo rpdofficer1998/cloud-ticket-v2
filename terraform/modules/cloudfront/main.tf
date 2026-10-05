@@ -22,6 +22,8 @@ resource "aws_cloudfront_distribution" "frontend" {
 
   aliases = [var.cloudfront_domain_name]
 
+  web_acl_id = aws_wafv2_web_acl.cloudfront.arn
+
   default_root_object = "index.html"
 
   origin {

@@ -45,3 +45,8 @@ variable "alb_domain_name" {
   description = "Domain name for the Application Load Balancer"
   type        = string
 }
+
+variable "initial_image_tag" {
+  description = "Initial CloudTicket backend Docker image tag stored in SSM Parameter Store"
+  type        = string
+}

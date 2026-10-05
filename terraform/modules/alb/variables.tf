@@ -23,11 +23,6 @@ variable "security_group_id" {
   type        = string
 }
 
-variable "ec2_instance_id" {
-  description = "EC2 instance ID to register with the target group"
-  type        = string
-}
-
 variable "target_port" {
   description = "Backend application port"
   type        = number

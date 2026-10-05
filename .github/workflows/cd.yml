@@ -1,10 +1,6 @@
 name: CloudTicket-v2 CD
 
 on:
-  push:
-    branches:
-      - main
-      
   workflow_dispatch:
 
 permissions:
@@ -13,17 +9,7 @@ permissions:
 
 env:
   AWS_REGION: ap-southeast-2
-
   ECR_REPOSITORY: cloudticket-v2-dev-backend
-
-  RDS_ENDPOINT: ${{ vars.RDS_ENDPOINT }}
-  RDS_SECRET_ARN: ${{ vars.RDS_SECRET_ARN }}
-
-  SQS_QUEUE_URL: ${{ vars.SQS_QUEUE_URL }}
-
-  # EC2 instances are selected by these tags.
-  EC2_PROJECT_TAG: cloudticket-v2
-  EC2_ENVIRONMENT_TAG: dev
 
 jobs:
   deploy:
@@ -53,129 +39,93 @@ jobs:
             -t $ECR_REPOSITORY:${{ github.sha }} \
             ./backend
 
-      # 5. Tag the image with the ECR registry address
+      # 5. Scan the Docker image for HIGH and CRITICAL vulnerabilities
+      - name: Scan Docker image with Trivy
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: '${{ env.ECR_REPOSITORY }}:${{ github.sha }}'
+          format: 'table'
+          severity: 'HIGH,CRITICAL'
+          # Ignore vulnerabilities that currently have no available fix.
+          # Production environments should define this according to their risk policy.
+          ignore-unfixed: true
+          exit-code: '1'
+
+      # 6. Tag the image with the ECR registry address
       - name: Tag Docker image
         run: |
           docker tag \
             $ECR_REPOSITORY:${{ github.sha }} \
             ${{ steps.login-ecr.outputs.registry }}/$ECR_REPOSITORY:${{ github.sha }}
 
-      # 6. Push the image to ECR
+      # 7. Push the image to ECR
       - name: Push Docker image to ECR
         run: |
           docker push \
             ${{ steps.login-ecr.outputs.registry }}/$ECR_REPOSITORY:${{ github.sha }}
 
-      # 7. Deploy the image to private EC2 instances through SSM
-      - name: Deploy to EC2 via SSM
-        id: deploy-ssm
+      # 8. Update the desired backend image version
+      - name: Update image tag in SSM Parameter Store
+        run: |
+          aws ssm put-parameter \
+            --name "/cloudticket-v2/dev/image-tag" \
+            --value "${{ github.sha }}" \
+            --type String \
+            --overwrite
+
+      # 9. Start an ASG rolling instance refresh
+      - name: Start ASG instance refresh
+        id: refresh
         run: |
           set -euo pipefail
 
-          ECR_REGISTRY="${{ steps.login-ecr.outputs.registry }}"
-
-          cat > deploy.sh <<EOF
-          set -e
-
-          aws ecr get-login-password --region $AWS_REGION | \
-            docker login --username AWS --password-stdin $ECR_REGISTRY
-
-          docker pull \
-            $ECR_REGISTRY/$ECR_REPOSITORY:${{ github.sha }}
-
-          SECRET_JSON=\$(aws secretsmanager get-secret-value \
-            --secret-id '${RDS_SECRET_ARN}' \
-            --region $AWS_REGION \
-            --query SecretString \
+          REFRESH_ID=$(aws autoscaling start-instance-refresh \
+            --auto-scaling-group-name "cloudticket-v2-dev-asg" \
+            --query 'InstanceRefreshId' \
             --output text)
 
-          DB_USER=\$(echo "\$SECRET_JSON" | jq -r .username)
-          DB_PASSWORD=\$(echo "\$SECRET_JSON" | jq -r .password)
+          echo "Instance Refresh ID: $REFRESH_ID"
+          echo "refresh-id=$REFRESH_ID" >> "$GITHUB_OUTPUT"
 
-          DB_HOST='${RDS_ENDPOINT}'
-          DB_NAME='cloudticketv2'
+      # 10. Wait for the ASG instance refresh to complete
+      - name: Wait for ASG instance refresh
+        run: |
+          set -euo pipefail
 
-          docker stop cloudticket-backend-v2 || true
-          docker rm cloudticket-backend-v2 || true
+          REFRESH_ID="${{ steps.refresh.outputs.refresh-id }}"
 
-          docker run -d \
-            --name cloudticket-backend-v2 \
-            --restart unless-stopped \
-            -p 3000:3000 \
-            -e NODE_ENV=production \
-            -e AWS_DEFAULT_REGION="$AWS_REGION" \
-            -e SQS_QUEUE_URL="$SQS_QUEUE_URL" \
-            -e DB_HOST="\$DB_HOST" \
-            -e DB_PORT=5432 \
-            -e DB_NAME="\$DB_NAME" \
-            -e DB_USER="\$DB_USER" \
-            -e DB_PASSWORD="\$DB_PASSWORD" \
-            $ECR_REGISTRY/$ECR_REPOSITORY:${{ github.sha }}
-
-          unset SECRET_JSON DB_USER DB_PASSWORD DB_HOST DB_NAME
-          EOF
-
-          COMMAND_ID=$(aws ssm send-command \
-            --targets \
-              "Key=tag:Project,Values=$EC2_PROJECT_TAG" \
-              "Key=tag:Environment,Values=$EC2_ENVIRONMENT_TAG" \
-            --document-name "AWS-RunShellScript" \
-            --parameters "commands=$(jq -R -s 'split("\n") | map(select(length > 0))' deploy.sh)" \
-            --query 'Command.CommandId' \
-            --output text)
-
-          echo "SSM Command ID: $COMMAND_ID"
-          echo "command-id=$COMMAND_ID" >> "$GITHUB_OUTPUT"
-
-          # Wait for deployment to complete
           for i in {1..60}; do
-            STATUS=$(aws ssm list-command-invocations \
-              --command-id "$COMMAND_ID" \
-              --details \
-              --query 'CommandInvocations[].Status' \
+            STATUS=$(aws autoscaling describe-instance-refreshes \
+              --auto-scaling-group-name "cloudticket-v2-dev-asg" \
+              --instance-refresh-ids "$REFRESH_ID" \
+              --query 'InstanceRefreshes[0].Status' \
               --output text)
 
-            echo "Current status: $STATUS"
+            echo "Instance Refresh status: $STATUS"
 
-            # Fail if any targeted instance fails.
-            if echo "$STATUS" | grep -qE 'Failed|Cancelled|TimedOut'; then
-              echo "Deployment failed."
-              exit 1
-            fi
+            case "$STATUS" in
+              Successful)
+                echo "Instance refresh completed successfully."
+                exit 0
+                ;;
+              Failed|Cancelled|RollbackFailed)
+                echo "Instance refresh failed."
+                exit 1
+                ;;
+            esac
 
-            # Succeed only when all returned invocations are finished.
-            if [ -n "$STATUS" ] && \
-              ! echo "$STATUS" | grep -qE 'Pending|InProgress'; then
-              echo "Deployment completed."
-              break
-            fi
-
-            sleep 5
+            sleep 10
           done
 
-          # Make sure the loop did not simply run out of time.
-          if echo "$STATUS" | grep -qE 'Pending|InProgress' || [ -z "$STATUS" ]; then
-            echo "Deployment timed out or no target instance was found."
-            exit 1
-          fi
+          echo "Instance refresh timed out."
+          exit 1
 
-      # 8. Show the result of the deployment command
-      - name: Check deployment result
+      # 11. Deploy frontend files to Amazon S3
+      - name: Deploy frontend files to Amazon S3
         run: |
-          # Show deployment results for all targeted EC2 instances.
-          aws ssm list-command-invocations \
-            --command-id "${{ steps.deploy-ssm.outputs.command-id }}" \
-            --details
+          aws s3 sync ./frontend/ s3://cloudticket-v2-dev-frontend --delete
 
-      # 9. Deploy frontend files to Amazon S3
-      - name: Deploy frontend to S3
-        run: |
-          aws s3 sync \
-            ./frontend/ \
-            s3://cloudticket-v2-dev-frontend \
-            --delete
-
-      # 10. Invalidate CloudFront cache
+      # 12. Invalidate CloudFront cache
       - name: Invalidate CloudFront cache
         run: |
           aws cloudfront create-invalidation \

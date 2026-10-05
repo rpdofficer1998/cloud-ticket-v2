@@ -90,6 +90,27 @@ resource "aws_iam_policy" "ec2_secrets_manager" {
   })
 }
 
+resource "aws_iam_policy" "ec2_ssm_parameter" {
+  name        = "${var.project_name}-${var.environment}-ec2-ssm-parameter"
+  description = "Allow CloudTicket EC2 instances to read the current backend image tag from SSM Parameter Store"
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+
+    Statement = [
+      {
+        Effect = "Allow"
+
+        Action = [
+          "ssm:GetParameter"
+        ]
+
+        Resource = var.image_tag_parameter_arn
+      }
+    ]
+  })
+}
+
 resource "aws_iam_role_policy_attachment" "ec2_ssm" {
   role       = aws_iam_role.ec2.name
   policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
@@ -113,6 +134,11 @@ resource "aws_iam_role_policy_attachment" "ec2_sqs_kms" {
 resource "aws_iam_role_policy_attachment" "ec2_secrets_manager" {
   role       = aws_iam_role.ec2.name
   policy_arn = aws_iam_policy.ec2_secrets_manager.arn
+}
+
+resource "aws_iam_role_policy_attachment" "ec2_ssm_parameter" {
+  role       = aws_iam_role.ec2.name
+  policy_arn = aws_iam_policy.ec2_ssm_parameter.arn
 }
 
 resource "aws_iam_instance_profile" "ec2" {
@@ -213,7 +239,7 @@ resource "aws_iam_policy" "github_actions_ecr" {
 resource "aws_iam_policy" "github_actions_ssm" {
   name = "${var.project_name}-${var.environment}-github-actions-ssm"
 
-  description = "Allow GitHub Actions to deploy CloudTicket backend to the application EC2 instance via SSM"
+  description = "Allow GitHub Actions to update the desired backend image version in SSM Parameter Store"
 
   policy = jsonencode({
     Version = "2012-10-17"
@@ -223,42 +249,32 @@ resource "aws_iam_policy" "github_actions_ssm" {
         Effect = "Allow"
 
         Action = [
-          "ssm:SendCommand"
+          "ssm:PutParameter"
         ]
 
-        Resource = [
-          "arn:aws:ssm:${var.aws_region}::document/AWS-RunShellScript"
-        ]
-      },
+        Resource = var.image_tag_parameter_arn
+      }
+    ]
+  })
+}
 
+resource "aws_iam_policy" "github_actions_autoscaling" {
+  name = "${var.project_name}-${var.environment}-github-actions-autoscaling"
+
+  description = "Allow GitHub Actions to start an instance refresh for the CloudTicket Auto Scaling Group"
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+
+    Statement = [
       {
         Effect = "Allow"
 
         Action = [
-          "ssm:SendCommand"
+          "autoscaling:StartInstanceRefresh"
         ]
 
-        Resource = [
-          "arn:aws:ec2:${var.aws_region}:${data.aws_caller_identity.current.account_id}:instance/*"
-        ]
-
-        Condition = {
-          StringEquals = {
-            "ssm:resourceTag/Project"     = var.project_name
-            "ssm:resourceTag/Environment" = var.environment
-          }
-        }
-      },
-
-      {
-        Effect = "Allow"
-
-        Action = [
-          "ssm:GetCommandInvocation",
-          "ssm:ListCommandInvocations"
-        ]
-
-        Resource = "*"
+        Resource = var.asg_arn
       }
     ]
   })
@@ -314,6 +330,15 @@ resource "aws_iam_policy" "github_actions_cloudfront" {
         ]
 
         Resource = var.cloudfront_distribution_arn
+      },
+      {
+        Effect = "Allow"
+
+        Action = [
+          "autoscaling:DescribeInstanceRefreshes"
+        ]
+
+        Resource = "*"
       }
     ]
   })
@@ -327,6 +352,11 @@ resource "aws_iam_role_policy_attachment" "github_actions_ecr" {
 resource "aws_iam_role_policy_attachment" "github_actions_ssm" {
   role       = aws_iam_role.github_actions.name
   policy_arn = aws_iam_policy.github_actions_ssm.arn
+}
+
+resource "aws_iam_role_policy_attachment" "github_actions_autoscaling" {
+  role       = aws_iam_role.github_actions.name
+  policy_arn = aws_iam_policy.github_actions_autoscaling.arn
 }
 
 resource "aws_iam_role_policy_attachment" "github_actions_s3" {

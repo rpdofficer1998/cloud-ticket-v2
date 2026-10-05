@@ -93,7 +93,11 @@ module "iam" {
   sqs_kms_key_arn = module.kms.kms_key_arn
 
   ecr_repository_arn = module.ecr.repository_arn
-  rds_secret_arn     = module.rds.master_user_secret_arn
+
+  image_tag_parameter_arn = module.ssm.image_tag_parameter_arn
+  asg_arn                 = module.asg.autoscaling_group_arn
+
+  rds_secret_arn = module.rds.master_user_secret_arn
 
   frontend_bucket_arn         = module.s3.bucket_arn
   cloudfront_distribution_arn = module.cloudfront.distribution_arn
@@ -111,8 +115,7 @@ module "vpc_endpoints" {
 
   route_table_ids = module.networking.private_route_table_ids
 
-  # Phase 1: use only the first private subnet (ap-southeast-2a)
-  subnet_ids = [module.networking.private_subnet_ids[0]]
+  subnet_ids = module.networking.private_subnet_ids
 
   ssm_security_group_ids = [
     module.security_groups.ssm_endpoint_security_group_id
@@ -129,21 +132,6 @@ module "vpc_endpoints" {
   sqs_security_group_ids = [
     module.security_groups.sqs_endpoint_security_group_id
   ]
-}
-
-module "ec2" {
-  source = "./modules/ec2"
-
-  project_name = var.project_name
-  environment  = var.environment
-
-  ami_id = var.ami_id
-
-  private_subnet_id = module.networking.private_subnet_ids[0]
-
-  security_group_id = module.security_groups.ec2_security_group_id
-
-  instance_profile_name = module.iam.ec2_instance_profile_name
 }
 
 module "rds" {
@@ -172,6 +160,11 @@ module "s3" {
 
 module "cloudfront" {
   source = "./modules/cloudfront"
+
+  providers = {
+    aws           = aws
+    aws.us_east_1 = aws.us_east_1
+  }
 
   project_name = var.project_name
   environment  = var.environment
@@ -222,10 +215,45 @@ module "alb" {
 
   security_group_id = module.security_groups.alb_security_group_id
 
-  ec2_instance_id = module.ec2.instance_id
-
   target_port       = 3000
   health_check_path = "/"
 
   certificate_arn = module.dns_records.validated_alb_certificate_arn
+}
+
+module "asg" {
+  source = "./modules/asg"
+
+  project_name = var.project_name
+  environment  = var.environment
+
+  ami_id        = var.ami_id
+  instance_type = "t3.micro"
+
+  security_group_id = module.security_groups.ec2_security_group_id
+
+  instance_profile_name = module.iam.ec2_instance_profile_name
+
+  private_subnet_ids = module.networking.private_subnet_ids
+
+  target_group_arn = module.alb.target_group_arn
+
+  aws_region               = var.aws_region
+  ecr_repository_url       = module.ecr.repository_url
+  rds_endpoint             = module.rds.db_endpoint
+  rds_secret_arn           = module.rds.master_user_secret_arn
+  sqs_queue_url            = module.sqs.queue_url
+  image_tag_parameter_name = module.ssm.image_tag_parameter_name
+
+  min_size         = 2
+  desired_capacity = 2
+  max_size         = 3
+}
+
+module "ssm" {
+  source = "./modules/ssm"
+
+  project_name      = var.project_name
+  environment       = var.environment
+  initial_image_tag = var.initial_image_tag
 }

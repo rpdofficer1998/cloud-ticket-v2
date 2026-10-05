@@ -39,12 +39,6 @@ resource "aws_lb_target_group" "backend" {
   }
 }
 
-resource "aws_lb_target_group_attachment" "ec2" {
-  target_group_arn = aws_lb_target_group.backend.arn
-  target_id        = var.ec2_instance_id
-  port             = var.target_port
-}
-
 resource "aws_lb_listener" "https" {
   load_balancer_arn = aws_lb.this.arn
 
