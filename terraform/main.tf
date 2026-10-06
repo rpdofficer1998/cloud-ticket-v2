@@ -255,3 +255,17 @@ module "ssm" {
   environment       = var.environment
   initial_image_tag = var.initial_image_tag
 }
+
+module "cloudwatch" {
+  source = "./modules/cloudwatch"
+
+  project_name = var.project_name
+  environment  = var.environment
+  aws_region   = var.aws_region
+
+  alb_arn                = module.alb.alb_arn
+  target_group_arn       = module.alb.target_group_arn
+  autoscaling_group_name = module.asg.autoscaling_group_name
+  db_instance_id         = module.rds.db_instance_id
+  waf_web_acl_name       = module.cloudfront.waf_web_acl_name
+}

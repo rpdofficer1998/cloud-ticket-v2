@@ -4,6 +4,10 @@ resource "aws_ssm_parameter" "image_tag" {
   type  = "String"
   value = var.initial_image_tag
 
+  lifecycle {
+    ignore_changes = [value]
+  }
+
   description = "Current CloudTicket backend Docker image tag"
 
   tags = {
