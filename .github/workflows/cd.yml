@@ -1,6 +1,14 @@
 name: CloudTicket-v2 CD
 
 on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'backend/**'
+      - 'frontend/**'
+      - '.github/workflows/cd.yml'
+
   workflow_dispatch:
 
 permissions:

@@ -30,12 +30,6 @@ variable "db_username" {
   type        = string
 }
 
-variable "rds_availability_zone" {
-  description = "Availability Zone for the CloudTicket RDS instance"
-  type        = string
-  default     = "ap-southeast-2a"
-}
-
 variable "cloudfront_domain_name" {
   description = "CloudFront domain name for the CloudTicket v2 application"
   type        = string

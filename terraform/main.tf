@@ -142,8 +142,6 @@ module "rds" {
 
   database_subnet_ids = module.networking.database_subnet_ids
 
-  availability_zone = var.rds_availability_zone
-
   security_group_id = module.security_groups.rds_security_group_id
 
   kms_key_arn = module.kms.kms_key_arn

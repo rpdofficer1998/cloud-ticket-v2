@@ -13,11 +13,6 @@ variable "database_subnet_ids" {
   type        = list(string)
 }
 
-variable "availability_zone" {
-  description = "Availability Zone for the RDS instance"
-  type        = string
-}
-
 variable "security_group_id" {
   description = "Security group ID for the RDS instance"
   type        = string
