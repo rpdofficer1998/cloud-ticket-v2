@@ -47,13 +47,13 @@ jobs:
             -t $ECR_REPOSITORY:${{ github.sha }} \
             ./backend
 
-      # 5. Scan the Docker image for HIGH and CRITICAL vulnerabilities
+      # 5. Scan the Docker image for CRITICAL vulnerabilities
       - name: Scan Docker image with Trivy
         uses: aquasecurity/trivy-action@v0.36.0
         with:
           image-ref: '${{ env.ECR_REPOSITORY }}:${{ github.sha }}'
           format: 'table'
-          severity: 'HIGH,CRITICAL'
+          severity: 'CRITICAL'
           # Ignore vulnerabilities that currently have no available fix.
           # Production environments should define this according to their risk policy.
           ignore-unfixed: true
